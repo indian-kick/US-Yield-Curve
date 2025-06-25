@@ -35,33 +35,35 @@ with main_tab:
         xaxis_title="Date",
         yaxis_title="Yield (%)",
         hovermode='x unified',
+        xaxis=dict(tickformat='%Y-%m-%d')
     )
 
     st.plotly_chart(fig_ts, use_container_width=True)
 
-    clicked_point = st.plotly_events(fig_ts, click_event=True, override_height=600)
+    # === Yield Curve by Date Input ===
+    min_date = df['DateOnly'].min()
+    max_date = df['DateOnly'].max()
+    selected_date = st.date_input("Select a date to view yield curve", value=max_date, min_value=min_date, max_value=max_date)
 
-    if clicked_point:
-        point_index = clicked_point[0]['pointIndex']
-        clicked_date = df.iloc[point_index]['DateOnly']
-        selected_row = df[df['DateOnly'] == clicked_date].iloc[0]
+    if selected_date in df['DateOnly'].values:
+        selected_row = df[df['DateOnly'] == selected_date].iloc[0]
         maturities = ['2Y', '5Y', '10Y', '30Y']
         yields = [selected_row[m] for m in maturities]
 
         fig_yc = go.Figure()
         fig_yc.add_trace(go.Scatter(
-            x=maturities, y=yields, mode='lines+markers', name=str(clicked_date)
+            x=maturities, y=yields, mode='lines+markers', name=str(selected_date)
         ))
 
         fig_yc.update_layout(
-            title=f"Yield Curve on {clicked_date}",
+            title=f"Yield Curve on {selected_date}",
             xaxis_title="Maturity",
             yaxis_title="Yield (%)"
         )
 
         st.plotly_chart(fig_yc, use_container_width=True)
     else:
-        st.info("Click on a point in the yield time plot to view the yield curve below.")
+        st.warning("Selected date not available in dataset.")
 
 with spread_tab:
     st.subheader("Spreads (r2 - r1)")
@@ -75,7 +77,8 @@ with spread_tab:
         spread = df[leg2] - df[leg1]
         fig_spread = go.Figure()
         fig_spread.add_trace(go.Scatter(x=df['Date'], y=spread, mode='lines', name=f"{leg2} - {leg1}"))
-        fig_spread.update_layout(title=f"Spread: {leg2} - {leg1}", xaxis_title="Date", yaxis_title="Spread (%)")
+        fig_spread.update_layout(title=f"Spread: {leg2} - {leg1}", xaxis_title="Date", yaxis_title="Spread (%)",
+                                 xaxis=dict(tickformat='%Y-%m-%d'))
         st.plotly_chart(fig_spread, use_container_width=True)
     else:
         st.warning("Please select two different maturities.")
@@ -90,7 +93,8 @@ with fly_tab:
         fly = df[fly1] + df[fly3] - 2 * df[fly2]
         fig_fly = go.Figure()
         fig_fly.add_trace(go.Scatter(x=df['Date'], y=fly, mode='lines', name=f"{fly1} + {fly3} - 2*{fly2}"))
-        fig_fly.update_layout(title=f"Fly: {fly1} + {fly3} - 2*{fly2}", xaxis_title="Date", yaxis_title="Fly (%)")
+        fig_fly.update_layout(title=f"Fly: {fly1} + {fly3} - 2*{fly2}", xaxis_title="Date", yaxis_title="Fly (%)",
+                              xaxis=dict(tickformat='%Y-%m-%d'))
         st.plotly_chart(fig_fly, use_container_width=True)
     else:
         st.warning("Please select 3 different maturities.")
@@ -106,7 +110,8 @@ with defly_tab:
         defly = df[d4] - 3 * df[d3] + 3 * df[d2] - df[d1]
         fig_defly = go.Figure()
         fig_defly.add_trace(go.Scatter(x=df['Date'], y=defly, mode='lines', name=f"Defly"))
-        fig_defly.update_layout(title=f"Defly: {d4} - 3*{d3} + 3*{d2} - {d1}", xaxis_title="Date", yaxis_title="Defly (%)")
+        fig_defly.update_layout(title=f"Defly: {d4} - 3*{d3} + 3*{d2} - {d1}", xaxis_title="Date", yaxis_title="Defly (%)",
+                                xaxis=dict(tickformat='%Y-%m-%d'))
         st.plotly_chart(fig_defly, use_container_width=True)
     else:
         st.warning("Please select 4 different maturities.")
