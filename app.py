@@ -22,48 +22,37 @@ df = load_data()
 # Create tabs
 main_tab, spread_tab, fly_tab, defly_tab = st.tabs(["Yields & Curve", "Spreads", "Flies", "Deflies"])
 
-with main_tab:
-    # === Time Series Plot ===
-    fig_ts = go.Figure()
-    for col in ['2Y', '5Y', '10Y', '30Y']:
-        fig_ts.add_trace(go.Scatter(
-            x=df['Date'], y=df[col], mode='lines', name=col
-        ))
+from streamlit_plotly_events import plotly_events
 
-    fig_ts.update_layout(
-        title="Treasury Yields Over Time",
+with main_tab:
+    st.subheader("Click a date on the yield time series to view yield curve")
+
+    # Create time series plot
+    fig_ts_click = go.Figure()
+    for col in maturities:
+        fig_ts_click.add_trace(go.Scatter(x=df['Date'], y=df[col], mode='lines', name=col))
+
+    fig_ts_click.update_layout(
+        title="Click on a date to show its yield curve",
         xaxis_title="Date",
         yaxis_title="Yield (%)",
-        hovermode='x unified',
-        xaxis=dict(tickformat='%Y-%m-%d')
+        hovermode='x unified'
     )
 
-    st.plotly_chart(fig_ts, use_container_width=True)
+    # Capture clicks
+    selected = plotly_events(fig_ts_click, click_event=True, hover_event=False)
 
-    # === Yield Curve by Date Input ===
-    min_date = df['DateOnly'].min()
-    max_date = df['DateOnly'].max()
-    selected_date = st.date_input("Select a date to view yield curve", value=max_date, min_value=min_date, max_value=max_date)
-
-    if selected_date in df['DateOnly'].values:
-        selected_row = df[df['DateOnly'] == selected_date].iloc[0]
-        maturities = ['2Y', '5Y', '10Y', '30Y']
-        yields = [selected_row[m] for m in maturities]
+    if selected:
+        idx = selected[0]["pointIndex"]
+        clicked_row = df.iloc[idx]
+        clicked_date = clicked_row['DateOnly']
+        yc = [clicked_row[m] for m in maturities]
 
         fig_yc = go.Figure()
-        fig_yc.add_trace(go.Scatter(
-            x=maturities, y=yields, mode='lines+markers', name=str(selected_date)
-        ))
-
-        fig_yc.update_layout(
-            title=f"Yield Curve on {selected_date}",
-            xaxis_title="Maturity",
-            yaxis_title="Yield (%)"
-        )
-
+        fig_yc.add_trace(go.Scatter(x=maturities, y=yc, mode='lines+markers'))
+        fig_yc.update_layout(title=f"Yield Curve on {clicked_date}",
+                             xaxis_title="Maturity", yaxis_title="Yield (%)")
         st.plotly_chart(fig_yc, use_container_width=True)
-    else:
-        st.warning("Selected date not available in dataset.")
 
 with spread_tab:
     st.subheader("Spreads (r2 - r1)")
