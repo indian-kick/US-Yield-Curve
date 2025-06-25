@@ -22,16 +22,20 @@ st.title("Interactive US Treasury Yield Visualization")
 df = load_data()
 maturities = ['2Y', '5Y', '10Y', '30Y']
 
-# === Date Range Selector ===
+# === Date Range Selector (Separate Inputs) ===
 st.sidebar.header("Select Time Frame")
 min_date = df['Date'].min().date()
 max_date = df['Date'].max().date()
-start_date, end_date = st.sidebar.date_input(
-    "Date Range", [min_date, max_date],
-    min_value=min_date, max_value=max_date
-)
 
-# Filter the dataframe
+start_date = st.sidebar.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date, key="start_date")
+end_date = st.sidebar.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date, key="end_date")
+
+# Validation check
+if start_date > end_date:
+    st.sidebar.error("⚠️ Start date must be before or equal to end date.")
+    st.stop()
+
+# Apply filter
 df_filtered = df[(df['Date'].dt.date >= start_date) & (df['Date'].dt.date <= end_date)].reset_index(drop=True)
 
 # === Tabs ===
