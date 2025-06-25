@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objs as go
 import itertools
+from streamlit_plotly_events import plotly_events
 
+# === Load data ===
 @st.cache_data
 def load_data():
     df = pd.read_excel("US Yields.xlsx", header=None)
@@ -13,6 +15,7 @@ def load_data():
     df['DateOnly'] = df['Date'].dt.date
     return df
 
+# === Page config ===
 st.set_page_config(layout="wide")
 st.title("Interactive US Treasury Yield Visualization")
 
@@ -22,9 +25,7 @@ maturities = ['2Y', '5Y', '10Y', '30Y']
 # === Tabs ===
 main_tab, spread_tab, fly_tab, defly_tab = st.tabs(["Yields & Curve", "Spreads", "Flies", "Deflies"])
 
-from streamlit_plotly_events import plotly_events
-
-# Color mapping
+# === Color mapping ===
 curve_colors = {
     '2Y': '#1f77b4',
     '5Y': '#ff7f0e',
@@ -32,73 +33,57 @@ curve_colors = {
     '30Y': '#d62728'
 }
 
-# Ensure initial state
+# === Initial state ===
 if 'date_index' not in st.session_state:
     st.session_state.date_index = len(df) - 1
 
+# === Main Tab: Yield Time Series and Curve ===
 with main_tab:
     st.subheader("Click a date on the yield time series or use arrow buttons")
 
-    # Step 1 — Plotly click event first (sets a tentative index)
+    # Plot Time Series with click support
     fig_ts_click = go.Figure()
     for col in maturities:
         fig_ts_click.add_trace(go.Scatter(
             x=df['Date'], y=df[col], mode='lines',
             name=col, line=dict(color=curve_colors[col])
         ))
-
     fig_ts_click.update_layout(
         title="Click on a date to show its yield curve",
         xaxis_title="Date", yaxis_title="Yield (%)",
         hovermode='x unified'
     )
 
-    # Plot the figure and capture click
     selected = plotly_events(fig_ts_click, click_event=True, hover_event=False)
 
-    # Step 2 — Set default to current
+    # Set index to current session value
     proposed_index = st.session_state.date_index
 
-    # Step 3 — Navigation logic
-    # Add flags to detect button clicks
-    prev_clicked = st.session_state.get("prev_clicked", False)
-    next_clicked = st.session_state.get("next_clicked", False)
-    
-    # Navigation buttons
+    # Handle button clicks
     col1, col2, col3 = st.columns([1, 1, 4])
     with col1:
-        if st.button("⬅️ Previous"):
+        if st.button("⬅️ Previous", key="prev_button"):
             proposed_index = max(0, proposed_index - 1)
             st.session_state["prev_clicked"] = True
             st.session_state["next_clicked"] = False
     with col2:
-        if st.button("➡️ Next"):
+        if st.button("➡️ Next", key="next_button"):
             proposed_index = min(len(df) - 1, proposed_index + 1)
             st.session_state["next_clicked"] = True
             st.session_state["prev_clicked"] = False
-    
+
     # Override only if no button was clicked
-    if selected and not (prev_clicked or next_clicked):
+    if selected and not st.session_state.get("prev_clicked", False) and not st.session_state.get("next_clicked", False):
         proposed_index = selected[0]["pointIndex"]
-    
+
     # Reset flags
     st.session_state["prev_clicked"] = False
     st.session_state["next_clicked"] = False
 
-
-    # Step 4 — Navigation buttons
-    col1, col2, col3 = st.columns([1, 1, 4])
-    with col1:
-        if st.button("⬅️ Previous"):
-            proposed_index = max(0, proposed_index - 1)
-    with col2:
-        if st.button("➡️ Next"):
-            proposed_index = min(len(df) - 1, proposed_index + 1)
-
-    # Step 5 — Commit final index to session
+    # Save final index
     st.session_state.date_index = proposed_index
 
-    # Step 6 — Draw Yield Curve
+    # Show Yield Curve for selected date
     row = df.iloc[st.session_state.date_index]
     date_label = row['DateOnly']
     yc = [row[m] for m in maturities]
@@ -114,8 +99,7 @@ with main_tab:
 
     st.plotly_chart(fig_yc, use_container_width=True)
 
-
-# === All possible spreads ===
+# === Spread Tab ===
 with spread_tab:
     st.subheader("All Spreads: (r2 - r1)")
     pairs = [(a, b) for i, a in enumerate(maturities) for b in maturities[i+1:]]
@@ -127,7 +111,7 @@ with spread_tab:
                           xaxis=dict(tickformat='%Y-%m-%d'))
         st.plotly_chart(fig, use_container_width=True)
 
-# === All possible flies ===
+# === Fly Tab ===
 with fly_tab:
     st.subheader("All Flies: (r1 + r3 - 2*r2)")
     fly_combos = [combo for combo in itertools.permutations(maturities, 3) if len(set(combo)) == 3]
@@ -141,7 +125,7 @@ with fly_tab:
                           xaxis=dict(tickformat='%Y-%m-%d'))
         st.plotly_chart(fig, use_container_width=True)
 
-# === All possible deflies ===
+# === Defly Tab ===
 with defly_tab:
     st.subheader("All Deflies: (r4 - 3*r3 + 3*r2 - r1)")
     defly_combos = [combo for combo in itertools.permutations(maturities, 4) if len(set(combo)) == 4]
