@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objs as go
 import itertools
 from streamlit_plotly_events import plotly_events
-import time
+
 
 # === Load data ===
 @st.cache_data
@@ -109,61 +109,7 @@ with main_tab:
 
     st.plotly_chart(fig_yc, use_container_width=True)
 
-    # --- Define Animation Function ---
-    def run_animation():
-        chart_placeholder = st.empty()
-        progress_placeholder = st.empty()
-    
-        i = st.session_state.date_index
-        while st.session_state.play and i < len(df_filtered):
-            row = df_filtered.iloc[i]
-            date_label = row['DateOnly']
-            yc = [row[m] for m in maturities]
-    
-            fig_yc = go.Figure()
-            fig_yc.add_trace(go.Scatter(
-                x=maturities, y=yc, mode='lines+markers', line=dict(color='black')
-            ))
-            fig_yc.update_layout(
-                title=f"Yield Curve on {date_label}",
-                xaxis_title="Maturity", yaxis_title="Yield (%)"
-            )
-    
-            chart_placeholder.plotly_chart(fig_yc, use_container_width=True)
-            progress_placeholder.progress(i / (len(df_filtered) - 1), text=f"{date_label}")
-    
-            time.sleep(speed / 1000.0)
-    
-            i += 1
-            if i >= len(df_filtered):
-                if loop:
-                    i = 0
-                else:
-                    st.session_state.play = False
-    
-            st.session_state.date_index = i
-
-
-    # Scrubber
-    date_slider_index = st.slider(
-        "Scrub to a specific date",
-        min_value=0,
-        max_value=len(df_filtered) - 1,
-        value=st.session_state.date_index,
-        key="scrubber"
-    )
-    st.session_state.date_index = date_slider_index
-
-    # Placeholders to avoid duplicate element errors
-    chart_placeholder = st.empty()
-    progress_placeholder = st.empty()
-
-    # Run animation only when play is toggled
-    if st.session_state.play:
-        run_animation()
-
-
-
+   
 # === Spread Tab ===
 with spread_tab:
     st.subheader("Spreads (r2 - r1)")
