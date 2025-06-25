@@ -109,26 +109,40 @@ with main_tab:
 
     st.plotly_chart(fig_yc, use_container_width=True)
 
-    # === Animation Section ===
-    st.divider()
-    st.subheader("Yield Curve Animation")
+    # --- Define Animation Function ---
+    def run_animation():
+        chart_placeholder = st.empty()
+        progress_placeholder = st.empty()
+    
+        i = st.session_state.date_index
+        while st.session_state.play and i < len(df_filtered):
+            row = df_filtered.iloc[i]
+            date_label = row['DateOnly']
+            yc = [row[m] for m in maturities]
+    
+            fig_yc = go.Figure()
+            fig_yc.add_trace(go.Scatter(
+                x=maturities, y=yc, mode='lines+markers', line=dict(color='black')
+            ))
+            fig_yc.update_layout(
+                title=f"Yield Curve on {date_label}",
+                xaxis_title="Maturity", yaxis_title="Yield (%)"
+            )
+    
+            chart_placeholder.plotly_chart(fig_yc, use_container_width=True)
+            progress_placeholder.progress(i / (len(df_filtered) - 1), text=f"{date_label}")
+    
+            time.sleep(speed / 1000.0)
+    
+            i += 1
+            if i >= len(df_filtered):
+                if loop:
+                    i = 0
+                else:
+                    st.session_state.play = False
+    
+            st.session_state.date_index = i
 
-    col_speed, col_loop = st.columns([2, 1])
-    with col_speed:
-        speed = st.slider("Speed (ms per frame)", min_value=100, max_value=2000, value=500, step=100, key="speed_slider")
-    with col_loop:
-        loop = st.checkbox("Loop Animation", value=False, key="loop_checkbox")
-
-    col_play, col_pause = st.columns([1, 1])
-    with col_play:
-        if st.button("▶️ Play", key="play_button"):
-            st.session_state.play = True
-    with col_pause:
-        if st.button("⏸️ Pause", key="pause_button"):
-            st.session_state.play = False
-
-    if "play" not in st.session_state:
-        st.session_state.play = False
 
     # Scrubber
     date_slider_index = st.slider(
@@ -144,37 +158,10 @@ with main_tab:
     chart_placeholder = st.empty()
     progress_placeholder = st.empty()
 
+    # Run animation only when play is toggled
     if st.session_state.play:
-        i = st.session_state.date_index
-        while i < len(df_filtered):
-            if not st.session_state.play:
-                break
+        run_animation()
 
-            st.session_state.date_index = i
-            row = df_filtered.iloc[i]
-            date_label = row['DateOnly']
-            yc = [row[m] for m in maturities]
-
-            fig_yc = go.Figure()
-            fig_yc.add_trace(go.Scatter(
-                x=maturities, y=yc, mode='lines+markers', line=dict(color='black')
-            ))
-            fig_yc.update_layout(
-                title=f"Yield Curve on {date_label}",
-                xaxis_title="Maturity", yaxis_title="Yield (%)"
-            )
-
-            chart_placeholder.plotly_chart(fig_yc, use_container_width=True)
-            progress_placeholder.progress(i / (len(df_filtered) - 1), text=f"{date_label}")
-
-            time.sleep(speed / 1000.0)
-            i += 1
-
-            if i >= len(df_filtered):
-                if loop:
-                    i = 0
-                else:
-                    st.session_state.play = False
 
 
 # === Spread Tab ===
