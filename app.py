@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objs as go
 import itertools
 from streamlit_plotly_events import plotly_events
+import time
 
 # === Load data ===
 @st.cache_data
@@ -110,7 +111,6 @@ with main_tab:
 
     st.plotly_chart(fig_yc, use_container_width=True)
 
-    import time
 
     st.divider()
     st.subheader("Yield Curve Animation")
