@@ -24,7 +24,7 @@ main_tab, spread_tab, fly_tab, defly_tab = st.tabs(["Yields & Curve", "Spreads",
 
 from streamlit_plotly_events import plotly_events
 
-# Define colors
+# Color mapping
 curve_colors = {
     '2Y': '#1f77b4',
     '5Y': '#ff7f0e',
@@ -32,14 +32,14 @@ curve_colors = {
     '30Y': '#d62728'
 }
 
-# Ensure session state exists
+# Ensure initial state
 if 'date_index' not in st.session_state:
     st.session_state.date_index = len(df) - 1
 
 with main_tab:
-    st.subheader("Click a date on the yield time series or use arrow buttons to view yield curve")
+    st.subheader("Click a date on the yield time series or use arrow buttons")
 
-    # Plot the main time series
+    # Step 1 — Plotly click event first (sets a tentative index)
     fig_ts_click = go.Figure()
     for col in maturities:
         fig_ts_click.add_trace(go.Scatter(
@@ -53,27 +53,29 @@ with main_tab:
         hovermode='x unified'
     )
 
-    # Row for navigation buttons
-    col1, col2, col3 = st.columns([1, 1, 4])
-    with col1:
-        prev_click = st.button("⬅️ Previous")
-    with col2:
-        next_click = st.button("➡️ Next")
-
-    # Handle navigation buttons
-    if prev_click:
-        st.session_state.date_index = max(0, st.session_state.date_index - 1)
-    elif next_click:
-        st.session_state.date_index = min(len(df) - 1, st.session_state.date_index + 1)
-
-    # Now show the main chart and capture click event
+    # Plot the figure and capture click
     selected = plotly_events(fig_ts_click, click_event=True, hover_event=False)
 
-    # If chart clicked, override date_index
-    if selected:
-        st.session_state.date_index = selected[0]["pointIndex"]
+    # Step 2 — Set default to current
+    proposed_index = st.session_state.date_index
 
-    # Extract row & draw yield curve
+    # Step 3 — If clicked, override index
+    if selected:
+        proposed_index = selected[0]["pointIndex"]
+
+    # Step 4 — Navigation buttons
+    col1, col2, col3 = st.columns([1, 1, 4])
+    with col1:
+        if st.button("⬅️ Previous"):
+            proposed_index = max(0, proposed_index - 1)
+    with col2:
+        if st.button("➡️ Next"):
+            proposed_index = min(len(df) - 1, proposed_index + 1)
+
+    # Step 5 — Commit final index to session
+    st.session_state.date_index = proposed_index
+
+    # Step 6 — Draw Yield Curve
     row = df.iloc[st.session_state.date_index]
     date_label = row['DateOnly']
     yc = [row[m] for m in maturities]
@@ -82,7 +84,6 @@ with main_tab:
     fig_yc.add_trace(go.Scatter(
         x=maturities, y=yc, mode='lines+markers', line=dict(color='black')
     ))
-
     fig_yc.update_layout(
         title=f"Yield Curve on {date_label}",
         xaxis_title="Maturity", yaxis_title="Yield (%)"
