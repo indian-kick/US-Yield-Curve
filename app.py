@@ -5,7 +5,7 @@ import plotly.graph_objs as go
 # === Load and clean Excel data ===
 @st.cache_data
 def load_data():
-    df = pd.read_excel("yields.xlsx", header=None)
+    df = pd.read_excel("US Yields.xlsx", header=None)
     df = df[df[1].apply(lambda x: isinstance(x, pd.Timestamp) or pd.to_datetime(x, errors='coerce') is not pd.NaT)]
     df.columns = ['Day', 'Date', '10Y', '2Y', '5Y', '30Y']
     df['Date'] = pd.to_datetime(df['Date'])
