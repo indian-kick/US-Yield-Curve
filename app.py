@@ -72,10 +72,8 @@ with main_tab:
 
     selected = plotly_events(fig_ts_click, click_event=True, hover_event=False)
 
-    # Set index to current session value
     proposed_index = st.session_state.date_index
 
-    # Handle button clicks
     col1, col2, col3 = st.columns([1, 1, 4])
     with col1:
         if st.button("⬅️ Previous", key="prev_button"):
@@ -88,7 +86,6 @@ with main_tab:
             st.session_state["next_clicked"] = True
             st.session_state["prev_clicked"] = False
 
-    # Override only if no button was clicked
     if selected and not st.session_state.get("prev_clicked", False) and not st.session_state.get("next_clicked", False):
         proposed_index = selected[0]["pointIndex"]
 
@@ -96,6 +93,7 @@ with main_tab:
     st.session_state["next_clicked"] = False
     st.session_state.date_index = proposed_index
 
+    # Yield Curve chart (initial or static view)
     row = df_filtered.iloc[st.session_state.date_index]
     date_label = row['DateOnly']
     yc = [row[m] for m in maturities]
@@ -111,18 +109,16 @@ with main_tab:
 
     st.plotly_chart(fig_yc, use_container_width=True)
 
-
+    # === Animation Section ===
     st.divider()
     st.subheader("Yield Curve Animation")
-    
-    # Speed and loop control
+
     col_speed, col_loop = st.columns([2, 1])
     with col_speed:
         speed = st.slider("Speed (ms per frame)", min_value=100, max_value=2000, value=500, step=100, key="speed_slider")
     with col_loop:
         loop = st.checkbox("Loop Animation", value=False, key="loop_checkbox")
-    
-    # Play / Pause Buttons
+
     col_play, col_pause = st.columns([1, 1])
     with col_play:
         if st.button("▶️ Play", key="play_button"):
@@ -130,12 +126,11 @@ with main_tab:
     with col_pause:
         if st.button("⏸️ Pause", key="pause_button"):
             st.session_state.play = False
-    
-    # Initialize play state if not present
+
     if "play" not in st.session_state:
         st.session_state.play = False
-    
-    # === Manual Date Scrub Slider ===
+
+    # Scrubber
     date_slider_index = st.slider(
         "Scrub to a specific date",
         min_value=0,
@@ -143,19 +138,23 @@ with main_tab:
         value=st.session_state.date_index,
         key="scrubber"
     )
-    
-    # Sync session state index with slider
     st.session_state.date_index = date_slider_index
-    
-    # Animate Yield Curves
+
+    # Placeholders to avoid duplicate element errors
+    chart_placeholder = st.empty()
+    progress_placeholder = st.empty()
+
     if st.session_state.play:
         i = st.session_state.date_index
         while i < len(df_filtered):
+            if not st.session_state.play:
+                break
+
             st.session_state.date_index = i
             row = df_filtered.iloc[i]
             date_label = row['DateOnly']
             yc = [row[m] for m in maturities]
-    
+
             fig_yc = go.Figure()
             fig_yc.add_trace(go.Scatter(
                 x=maturities, y=yc, mode='lines+markers', line=dict(color='black')
@@ -164,19 +163,13 @@ with main_tab:
                 title=f"Yield Curve on {date_label}",
                 xaxis_title="Maturity", yaxis_title="Yield (%)"
             )
-    
-            st.plotly_chart(fig_yc, use_container_width=True)
-    
-            # Progress bar
-            st.progress(i / (len(df_filtered) - 1), text=f"{date_label}")
-    
+
+            chart_placeholder.plotly_chart(fig_yc, use_container_width=True)
+            progress_placeholder.progress(i / (len(df_filtered) - 1), text=f"{date_label}")
+
             time.sleep(speed / 1000.0)
-    
-            if not st.session_state.play:
-                break
-    
             i += 1
-    
+
             if i >= len(df_filtered):
                 if loop:
                     i = 0
