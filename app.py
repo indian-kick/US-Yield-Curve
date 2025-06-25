@@ -110,6 +110,80 @@ with main_tab:
 
     st.plotly_chart(fig_yc, use_container_width=True)
 
+    import time
+
+    st.divider()
+    st.subheader("Yield Curve Animation")
+    
+    # Speed and loop control
+    col_speed, col_loop = st.columns([2, 1])
+    with col_speed:
+        speed = st.slider("Speed (ms per frame)", min_value=100, max_value=2000, value=500, step=100, key="speed_slider")
+    with col_loop:
+        loop = st.checkbox("Loop Animation", value=False, key="loop_checkbox")
+    
+    # Play / Pause Buttons
+    col_play, col_pause = st.columns([1, 1])
+    with col_play:
+        if st.button("▶️ Play", key="play_button"):
+            st.session_state.play = True
+    with col_pause:
+        if st.button("⏸️ Pause", key="pause_button"):
+            st.session_state.play = False
+    
+    # Initialize play state if not present
+    if "play" not in st.session_state:
+        st.session_state.play = False
+    
+    # === Manual Date Scrub Slider ===
+    date_slider_index = st.slider(
+        "Scrub to a specific date",
+        min_value=0,
+        max_value=len(df_filtered) - 1,
+        value=st.session_state.date_index,
+        key="scrubber"
+    )
+    
+    # Sync session state index with slider
+    st.session_state.date_index = date_slider_index
+    
+    # Animate Yield Curves
+    if st.session_state.play:
+        i = st.session_state.date_index
+        while i < len(df_filtered):
+            st.session_state.date_index = i
+            row = df_filtered.iloc[i]
+            date_label = row['DateOnly']
+            yc = [row[m] for m in maturities]
+    
+            fig_yc = go.Figure()
+            fig_yc.add_trace(go.Scatter(
+                x=maturities, y=yc, mode='lines+markers', line=dict(color='black')
+            ))
+            fig_yc.update_layout(
+                title=f"Yield Curve on {date_label}",
+                xaxis_title="Maturity", yaxis_title="Yield (%)"
+            )
+    
+            st.plotly_chart(fig_yc, use_container_width=True)
+    
+            # Progress bar
+            st.progress(i / (len(df_filtered) - 1), text=f"{date_label}")
+    
+            time.sleep(speed / 1000.0)
+    
+            if not st.session_state.play:
+                break
+    
+            i += 1
+    
+            if i >= len(df_filtered):
+                if loop:
+                    i = 0
+                else:
+                    st.session_state.play = False
+
+
 # === Spread Tab ===
 with spread_tab:
     st.subheader("Spreads (r2 - r1)")
