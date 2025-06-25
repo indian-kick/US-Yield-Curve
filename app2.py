@@ -59,9 +59,32 @@ with main_tab:
     # Step 2 — Set default to current
     proposed_index = st.session_state.date_index
 
-    # Step 3 — If clicked, override index
-    if selected:
+    # Step 3 — Navigation logic
+    # Add flags to detect button clicks
+    prev_clicked = st.session_state.get("prev_clicked", False)
+    next_clicked = st.session_state.get("next_clicked", False)
+    
+    # Navigation buttons
+    col1, col2, col3 = st.columns([1, 1, 4])
+    with col1:
+        if st.button("⬅️ Previous"):
+            proposed_index = max(0, proposed_index - 1)
+            st.session_state["prev_clicked"] = True
+            st.session_state["next_clicked"] = False
+    with col2:
+        if st.button("➡️ Next"):
+            proposed_index = min(len(df) - 1, proposed_index + 1)
+            st.session_state["next_clicked"] = True
+            st.session_state["prev_clicked"] = False
+    
+    # Override only if no button was clicked
+    if selected and not (prev_clicked or next_clicked):
         proposed_index = selected[0]["pointIndex"]
+    
+    # Reset flags
+    st.session_state["prev_clicked"] = False
+    st.session_state["next_clicked"] = False
+
 
     # Step 4 — Navigation buttons
     col1, col2, col3 = st.columns([1, 1, 4])
