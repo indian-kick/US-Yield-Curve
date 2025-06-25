@@ -109,6 +109,26 @@ with main_tab:
 
     st.plotly_chart(fig_yc, use_container_width=True)
 
+    st.subheader("Yield Statistics (Selected Date Range)")
+
+    stats_data = []
+    for m in maturities:
+        mean = df_filtered[m].mean()
+        std = df_filtered[m].std()
+        min_val = df_filtered[m].min()
+        max_val = df_filtered[m].max()
+        stats_data.append({
+            'Maturity': m,
+            'Mean': round(mean, 3),
+            'Std Dev': round(std, 3),
+            'Min (Lower Bound)': round(min_val, 3),
+            'Max (Upper Bound)': round(max_val, 3)
+        })
+
+    stats_df = pd.DataFrame(stats_data)
+    st.dataframe(stats_df.set_index('Maturity'))
+
+
    
 # === Spread Tab ===
 with spread_tab:
@@ -126,6 +146,16 @@ with spread_tab:
         fig_spread.update_layout(title=f"Spread: {leg2} - {leg1}", xaxis_title="Date", yaxis_title="Spread (%)",
                                  xaxis=dict(tickformat='%Y-%m-%d'))
         st.plotly_chart(fig_spread, use_container_width=True)
+        st.subheader("Spread Statistics")
+        mean = spread.mean()
+        std = spread.std()
+        min_val = spread.min()
+        max_val = spread.max()
+        st.write(f"**Mean:** {round(mean, 3)}  \n"
+                 f"**Std Dev:** {round(std, 3)}  \n"
+                 f"**Min (Lower Bound):** {round(min_val, 3)}  \n"
+                 f"**Max (Upper Bound):** {round(max_val, 3)}")
+
     else:
         st.warning("Please select two different maturities.")
 
@@ -143,6 +173,16 @@ with fly_tab:
         fig_fly.update_layout(title=f"Fly: {fly1} + {fly3} - 2*{fly2}", xaxis_title="Date", yaxis_title="Fly (%)",
                               xaxis=dict(tickformat='%Y-%m-%d'))
         st.plotly_chart(fig_fly, use_container_width=True)
+        st.subheader("Fly Statistics")
+        mean = fly.mean()
+        std = fly.std()
+        min_val = fly.min()
+        max_val = fly.max()
+        st.write(f"**Mean:** {round(mean, 3)}  \n"
+                 f"**Std Dev:** {round(std, 3)}  \n"
+                 f"**Min (Lower Bound):** {round(min_val, 3)}  \n"
+                 f"**Max (Upper Bound):** {round(max_val, 3)}")
+
     else:
         st.warning("Please select 3 different maturities.")
 
@@ -161,5 +201,15 @@ with defly_tab:
         fig_defly.update_layout(title=f"Defly: {d4} - 3*{d3} + 3*{d2} - {d1}", xaxis_title="Date", yaxis_title="Defly (%)",
                                 xaxis=dict(tickformat='%Y-%m-%d'))
         st.plotly_chart(fig_defly, use_container_width=True)
+        st.subheader("Defly Statistics")
+        mean = defly.mean()
+        std = defly.std()
+        min_val = defly.min()
+        max_val = defly.max()
+        st.write(f"**Mean:** {round(mean, 3)}  \n"
+                 f"**Std Dev:** {round(std, 3)}  \n"
+                 f"**Min (Lower Bound):** {round(min_val, 3)}  \n"
+                 f"**Max (Upper Bound):** {round(max_val, 3)}")
+
     else:
         st.warning("Please select 4 different maturities.")
