@@ -24,7 +24,7 @@ main_tab, spread_tab, fly_tab, defly_tab = st.tabs(["Yields & Curve", "Spreads",
 
 from streamlit_plotly_events import plotly_events
 
-# Set curve colors
+# Define colors
 curve_colors = {
     '2Y': '#1f77b4',
     '5Y': '#ff7f0e',
@@ -32,53 +32,63 @@ curve_colors = {
     '30Y': '#d62728'
 }
 
+# Ensure session state exists
+if 'date_index' not in st.session_state:
+    st.session_state.date_index = len(df) - 1
+
 with main_tab:
-    st.subheader("Click a date on the yield time series to view yield curve")
+    st.subheader("Click a date on the yield time series or use arrow buttons to view yield curve")
 
-    # Initialize state on first run
-    if 'date_index' not in st.session_state:
-        st.session_state.date_index = len(df) - 1  # Default to latest date
-
-    # Build time series chart
+    # Plot the main time series
     fig_ts_click = go.Figure()
     for col in maturities:
         fig_ts_click.add_trace(go.Scatter(
             x=df['Date'], y=df[col], mode='lines',
             name=col, line=dict(color=curve_colors[col])
         ))
+
     fig_ts_click.update_layout(
         title="Click on a date to show its yield curve",
         xaxis_title="Date", yaxis_title="Yield (%)",
         hovermode='x unified'
     )
 
-    # Capture click events
+    # Row for navigation buttons
+    col1, col2, col3 = st.columns([1, 1, 4])
+    with col1:
+        prev_click = st.button("⬅️ Previous")
+    with col2:
+        next_click = st.button("➡️ Next")
+
+    # Handle navigation buttons
+    if prev_click:
+        st.session_state.date_index = max(0, st.session_state.date_index - 1)
+    elif next_click:
+        st.session_state.date_index = min(len(df) - 1, st.session_state.date_index + 1)
+
+    # Now show the main chart and capture click event
     selected = plotly_events(fig_ts_click, click_event=True, hover_event=False)
+
+    # If chart clicked, override date_index
     if selected:
         st.session_state.date_index = selected[0]["pointIndex"]
 
-    # Navigation buttons — store clicks in a temp variable
-    prev_clicked = st.button("⬅️ Previous")
-    next_clicked = st.button("➡️ Next")
-
-    if prev_clicked:
-        st.session_state.date_index = max(0, st.session_state.date_index - 1)
-    if next_clicked:
-        st.session_state.date_index = min(len(df) - 1, st.session_state.date_index + 1)
-
-    # Extract selected row and plot yield curve
-    clicked_row = df.iloc[st.session_state.date_index]
-    clicked_date = clicked_row['DateOnly']
-    yc = [clicked_row[m] for m in maturities]
+    # Extract row & draw yield curve
+    row = df.iloc[st.session_state.date_index]
+    date_label = row['DateOnly']
+    yc = [row[m] for m in maturities]
 
     fig_yc = go.Figure()
-    fig_yc.add_trace(go.Scatter(x=maturities, y=yc, mode='lines+markers', line=dict(color='black')))
+    fig_yc.add_trace(go.Scatter(
+        x=maturities, y=yc, mode='lines+markers', line=dict(color='black')
+    ))
+
     fig_yc.update_layout(
-        title=f"Yield Curve on {clicked_date}",
+        title=f"Yield Curve on {date_label}",
         xaxis_title="Maturity", yaxis_title="Yield (%)"
     )
-    st.plotly_chart(fig_yc, use_container_width=True)
 
+    st.plotly_chart(fig_yc, use_container_width=True)
 
 
 # === All possible spreads ===
