@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objs as go
+import itertools
+from streamlit_plotly_events import plotly_events
 
-# === Load and clean Excel data ===
+# === Load data ===
 @st.cache_data
 def load_data():
     df = pd.read_excel("US Yields.xlsx", header=None)
@@ -13,57 +15,89 @@ def load_data():
     df['DateOnly'] = df['Date'].dt.date
     return df
 
-# === Streamlit layout ===
+# === Page config ===
 st.set_page_config(layout="wide")
 st.title("Interactive US Treasury Yield Visualization")
 
 df = load_data()
+maturities = ['2Y', '5Y', '10Y', '30Y']
 
-# Create tabs
+# === Tabs ===
 main_tab, spread_tab, fly_tab, defly_tab = st.tabs(["Yields & Curve", "Spreads", "Flies", "Deflies"])
 
-with main_tab:
-    # === Time Series Plot ===
-    fig_ts = go.Figure()
-    for col in ['2Y', '5Y', '10Y', '30Y']:
-        fig_ts.add_trace(go.Scatter(
-            x=df['Date'], y=df[col], mode='lines', name=col
-        ))
+# === Color mapping ===
+curve_colors = {
+    '2Y': '#1f77b4',
+    '5Y': '#ff7f0e',
+    '10Y': '#2ca02c',
+    '30Y': '#d62728'
+}
 
-    fig_ts.update_layout(
-        title="Treasury Yields Over Time",
-        xaxis_title="Date",
-        yaxis_title="Yield (%)",
-        hovermode='x unified',
-        xaxis=dict(tickformat='%Y-%m-%d')
+# === Initial state ===
+if 'date_index' not in st.session_state:
+    st.session_state.date_index = len(df) - 1
+
+# === Main Tab: Yield Time Series and Curve ===
+with main_tab:
+    st.subheader("Click a date on the yield time series or use arrow buttons")
+
+    # Plot Time Series with click support
+    fig_ts_click = go.Figure()
+    for col in maturities:
+        fig_ts_click.add_trace(go.Scatter(
+            x=df['Date'], y=df[col], mode='lines',
+            name=col, line=dict(color=curve_colors[col])
+        ))
+    fig_ts_click.update_layout(
+        title="Click on a date to show its yield curve",
+        xaxis_title="Date", yaxis_title="Yield (%)",
+        hovermode='x unified'
     )
 
-    st.plotly_chart(fig_ts, use_container_width=True)
+    selected = plotly_events(fig_ts_click, click_event=True, hover_event=False)
 
-    # === Yield Curve by Date Input ===
-    min_date = df['DateOnly'].min()
-    max_date = df['DateOnly'].max()
-    selected_date = st.date_input("Select a date to view yield curve", value=max_date, min_value=min_date, max_value=max_date)
+    # Set index to current session value
+    proposed_index = st.session_state.date_index
 
-    if selected_date in df['DateOnly'].values:
-        selected_row = df[df['DateOnly'] == selected_date].iloc[0]
-        maturities = ['2Y', '5Y', '10Y', '30Y']
-        yields = [selected_row[m] for m in maturities]
+    # Handle button clicks
+    col1, col2, col3 = st.columns([1, 1, 4])
+    with col1:
+        if st.button("⬅️ Previous", key="prev_button"):
+            proposed_index = max(0, proposed_index - 1)
+            st.session_state["prev_clicked"] = True
+            st.session_state["next_clicked"] = False
+    with col2:
+        if st.button("➡️ Next", key="next_button"):
+            proposed_index = min(len(df) - 1, proposed_index + 1)
+            st.session_state["next_clicked"] = True
+            st.session_state["prev_clicked"] = False
 
-        fig_yc = go.Figure()
-        fig_yc.add_trace(go.Scatter(
-            x=maturities, y=yields, mode='lines+markers', name=str(selected_date)
-        ))
+    # Override only if no button was clicked
+    if selected and not st.session_state.get("prev_clicked", False) and not st.session_state.get("next_clicked", False):
+        proposed_index = selected[0]["pointIndex"]
 
-        fig_yc.update_layout(
-            title=f"Yield Curve on {selected_date}",
-            xaxis_title="Maturity",
-            yaxis_title="Yield (%)"
-        )
+    # Reset flags
+    st.session_state["prev_clicked"] = False
+    st.session_state["next_clicked"] = False
 
-        st.plotly_chart(fig_yc, use_container_width=True)
-    else:
-        st.warning("Selected date not available in dataset.")
+    # Save final index
+    st.session_state.date_index = proposed_index
+
+    # Show Yield Curve for selected date
+    row = df.iloc[st.session_state.date_index]
+    date_label = row['DateOnly']
+    yc = [row[m] for m in maturities]
+
+    fig_yc = go.Figure()
+    fig_yc.add_trace(go.Scatter(
+        x=maturities, y=yc, mode='lines+markers', line=dict(color='black')
+    ))
+    fig_yc.update_layout(
+        title=f"Yield Curve on {date_label}",
+        xaxis_title="Maturity", yaxis_title="Yield (%)"
+    )
+
+    st.plotly_chart(fig_yc, use_container_width=True)
 
 with spread_tab:
     st.subheader("Spreads (r2 - r1)")
