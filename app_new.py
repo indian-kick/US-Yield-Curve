@@ -20,7 +20,7 @@ def compute_stats(series):
     return {
         'Mean': round(series.mean(), 3),
         'Std Dev': round(series.std(), 3),
-        'Mean Abs Dev': round(series.mad(), 3),
+        'Mean Abs Dev': round((series - series.mean()).abs().mean(), 3),
         'Min (Lower Bound)': round(series.min(), 3),
         'Max (Upper Bound)': round(series.max(), 3)
     }
@@ -52,7 +52,7 @@ maturities = ['2Y', '5Y', '10Y', '30Y']
 min_date = df['Date'].min().date()
 max_date = df['Date'].max().date()
 
-st.sidebar.header("Select Time Frame")
+st.sidebar.header("Select Time Frame for Plot")
 start_date = st.sidebar.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
 end_date = st.sidebar.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
 
@@ -61,6 +61,14 @@ if start_date > end_date:
     st.stop()
 
 df_filtered = df[(df['Date'].dt.date >= start_date) & (df['Date'].dt.date <= end_date)].reset_index(drop=True)
+
+# === Color Mapping ===
+curve_colors = {
+    '2Y': '#1f77b4',
+    '5Y': '#ff7f0e',
+    '10Y': '#2ca02c',
+    '30Y': '#d62728'
+}
 
 # === Tabs ===
 main_tab, outright_tab, spread_tab, fly_tab, condor_tab = st.tabs(["Yields & Curve", "Outrights", "Spreads", "Flies", "Condors"])
@@ -71,7 +79,7 @@ with main_tab:
 
     fig_ts_click = go.Figure()
     for col in maturities:
-        fig_ts_click.add_trace(go.Scatter(x=df_filtered['Date'], y=df_filtered[col], mode='lines', name=col))
+        fig_ts_click.add_trace(go.Scatter(x=df_filtered['Date'], y=df_filtered[col], mode='lines', name=col, line=dict(color=curve_colors[col])))
 
     fig_ts_click.update_layout(title="Click on a date to show its yield curve", hovermode='x unified')
     selected = plotly_events(fig_ts_click, click_event=True)
@@ -92,12 +100,16 @@ with main_tab:
     st.session_state.date_index = proposed_index
     row = df_filtered.iloc[proposed_index]
     yc = [row[m] for m in maturities]
-    fig_yc = go.Figure(go.Scatter(x=maturities, y=yc, mode='lines+markers'))
+    fig_yc = go.Figure()
+    fig_yc.add_trace(go.Scatter(x=maturities, y=yc, mode='lines+markers', line=dict(color='black')))
     fig_yc.update_layout(title=f"Yield Curve on {row['DateOnly']}")
     st.plotly_chart(fig_yc, use_container_width=True)
 
-    stats_df = pd.DataFrame([{**compute_stats(df_filtered[m]), 'Maturity': m} for m in maturities])
     st.subheader("Yield Statistics")
+    stat_start = st.date_input("Stats Start Date", min_date, min_value=min_date, max_value=max_date, key="main_stat_start")
+    stat_end = st.date_input("Stats End Date", max_date, min_value=min_date, max_value=max_date, key="main_stat_end")
+    stat_df = df[(df['Date'].dt.date >= stat_start) & (df['Date'].dt.date <= stat_end)]
+    stats_df = pd.DataFrame([{**compute_stats(stat_df[m]), 'Maturity': m} for m in maturities])
     st.dataframe(stats_df.set_index('Maturity'))
 
 # === Outright Tab ===
@@ -106,8 +118,12 @@ with outright_tab:
     maturity = st.selectbox("Select Maturity", maturities, key="outright_select")
     fig = plot_with_bollinger(df_filtered, df_filtered[maturity], label=maturity)
     st.plotly_chart(fig, use_container_width=True)
+
     st.subheader("Statistics")
-    st.write(compute_stats(df_filtered[maturity]))
+    stat_start = st.date_input("Stats Start Date", min_date, min_value=min_date, max_value=max_date, key="out_stat_start")
+    stat_end = st.date_input("Stats End Date", max_date, min_value=min_date, max_value=max_date, key="out_stat_end")
+    stat_df = df[(df['Date'].dt.date >= stat_start) & (df['Date'].dt.date <= stat_end)]
+    st.write(compute_stats(stat_df[maturity]))
 
 # === Spread Tab ===
 with spread_tab:
@@ -115,10 +131,15 @@ with spread_tab:
     leg1 = st.selectbox("Leg 1", maturities, key="spread1")
     leg2 = st.selectbox("Leg 2", maturities, index=1, key="spread2")
     if leg1 != leg2:
-        spread = df_filtered[leg2] - df_filtered[leg1]  # using price difference for spread
+        spread = df_filtered[leg2] - df_filtered[leg1]
         st.plotly_chart(plot_with_bollinger(df_filtered, spread, f"{leg2} - {leg1}"), use_container_width=True)
+
         st.subheader("Statistics")
-        st.write(compute_stats(spread))
+        stat_start = st.date_input("Stats Start Date", min_date, min_value=min_date, max_value=max_date, key="spread_stat_start")
+        stat_end = st.date_input("Stats End Date", max_date, min_value=min_date, max_value=max_date, key="spread_stat_end")
+        stat_df = df[(df['Date'].dt.date >= stat_start) & (df['Date'].dt.date <= stat_end)]
+        spread_stat = stat_df[leg2] - stat_df[leg1]
+        st.write(compute_stats(spread_stat))
     else:
         st.warning("Please select different maturities")
 
@@ -129,10 +150,15 @@ with fly_tab:
     r2 = st.selectbox("r2 (center)", maturities, index=1, key="fly2")
     r3 = st.selectbox("r3", maturities, index=2, key="fly3")
     if len({r1, r2, r3}) == 3:
-        fly = 2 * df_filtered[r2] - df_filtered[r1] - df_filtered[r3]  # using price formula
+        fly = 2 * df_filtered[r2] - df_filtered[r1] - df_filtered[r3]
         st.plotly_chart(plot_with_bollinger(df_filtered, fly, f"2*{r2} - {r1} - {r3}"), use_container_width=True)
+
         st.subheader("Statistics")
-        st.write(compute_stats(fly))
+        stat_start = st.date_input("Stats Start Date", min_date, min_value=min_date, max_value=max_date, key="fly_stat_start")
+        stat_end = st.date_input("Stats End Date", max_date, min_value=min_date, max_value=max_date, key="fly_stat_end")
+        stat_df = df[(df['Date'].dt.date >= stat_start) & (df['Date'].dt.date <= stat_end)]
+        fly_stat = 2 * stat_df[r2] - stat_df[r1] - stat_df[r3]
+        st.write(compute_stats(fly_stat))
     else:
         st.warning("Select 3 different maturities")
 
@@ -144,9 +170,14 @@ with condor_tab:
     r3 = st.selectbox("r3", maturities, index=2, key="d3")
     r4 = st.selectbox("r4", maturities, index=3, key="d4")
     if len({r1, r2, r3, r4}) == 4:
-        condor = df_filtered[r4] - 3 * df_filtered[r3] + 3 * df_filtered[r2] - df_filtered[r1]  # using price formula
+        condor = df_filtered[r4] - 3 * df_filtered[r3] + 3 * df_filtered[r2] - df_filtered[r1]
         st.plotly_chart(plot_with_bollinger(df_filtered, condor, f"{r4} - 3*{r3} + 3*{r2} - {r1}"), use_container_width=True)
+
         st.subheader("Statistics")
-        st.write(compute_stats(condor))
+        stat_start = st.date_input("Stats Start Date", min_date, min_value=min_date, max_value=max_date, key="condor_stat_start")
+        stat_end = st.date_input("Stats End Date", max_date, min_value=min_date, max_value=max_date, key="condor_stat_end")
+        stat_df = df[(df['Date'].dt.date >= stat_start) & (df['Date'].dt.date <= stat_end)]
+        condor_stat = stat_df[r4] - 3 * stat_df[r3] + 3 * stat_df[r2] - stat_df[r1]
+        st.write(compute_stats(condor_stat))
     else:
         st.warning("Select 4 different maturities")
