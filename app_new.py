@@ -88,16 +88,27 @@ with main_tab:
         st.session_state.date_index = len(df_filtered) - 1
 
     proposed_index = st.session_state.date_index
+    
     col1, col2 = st.columns([1, 1])
-    if col1.button("⬅️ Previous"):
-        proposed_index = max(0, proposed_index - 1)
-    if col2.button("➡️ Next"):
-        proposed_index = min(len(df_filtered) - 1, proposed_index + 1)
-
-    if selected:
+    with col1:
+        if st.button("⬅️ Previous", key="prev_button"):
+            proposed_index = max(0, proposed_index - 1)
+            st.session_state["prev_clicked"] = True
+            st.session_state["next_clicked"] = False
+    with col2:
+        if st.button("➡️ Next", key="next_button"):
+            proposed_index = min(len(df_filtered) - 1, proposed_index + 1)
+            st.session_state["next_clicked"] = True
+            st.session_state["prev_clicked"] = False
+    
+    if selected and not st.session_state.get("prev_clicked", False) and not st.session_state.get("next_clicked", False):
         proposed_index = selected[0]["pointIndex"]
-
+    
+    # Reset after handling
+    st.session_state["prev_clicked"] = False
+    st.session_state["next_clicked"] = False
     st.session_state.date_index = proposed_index
+
     row = df_filtered.iloc[proposed_index]
     yc = [row[m] for m in maturities]
     fig_yc = go.Figure()
