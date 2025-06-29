@@ -34,9 +34,9 @@ def plot_with_bollinger(df, series, label):
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df['Date'], y=series, mode='lines', name=label))
-    fig.add_trace(go.Scatter(x=df['Date'], y=ma, mode='lines', name='MA(20)', line=dict(dash='dot')))
-    fig.add_trace(go.Scatter(x=df['Date'], y=upper, mode='lines', name='Upper Band', line=dict(dash='dot')))
-    fig.add_trace(go.Scatter(x=df['Date'], y=lower, mode='lines', name='Lower Band', line=dict(dash='dot')))
+    fig.add_trace(go.Scatter(x=df['Date'], y=ma, mode='lines', name='MA(20)'))
+    fig.add_trace(go.Scatter(x=df['Date'], y=upper, mode='lines', name='Upper Band', line=dict(width=0), showlegend=False))
+    fig.add_trace(go.Scatter(x=df['Date'], y=lower, mode='lines', name='Lower Band', line=dict(width=0), fill='tonexty', fillcolor='rgba(255, 255, 0, 0.3)', showlegend=True))
 
     fig.update_layout(title=f"{label} with Bollinger Bands & MA", xaxis_title="Date", yaxis_title="Value",
                       xaxis=dict(tickformat='%Y-%m-%d'))
