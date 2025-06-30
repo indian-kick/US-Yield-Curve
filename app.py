@@ -94,20 +94,35 @@ with main_tab:
     st.session_state.date_index = proposed_index
 
     # Yield Curve chart (initial or static view)
+    maturity_map = {
+        '2Y': 2,
+        '5Y': 5,
+        '10Y': 10,
+        '30Y': 30
+    }
     row = df_filtered.iloc[st.session_state.date_index]
     date_label = row['DateOnly']
     yc = [row[m] for m in maturities]
-
+    
+    # Map maturities to numeric values
+    maturities_numeric = [maturity_map[m] for m in maturities]
+    
     fig_yc = go.Figure()
     fig_yc.add_trace(go.Scatter(
-        x=maturities, y=yc, mode='lines+markers', line=dict(color='black')
+        x=maturities_numeric, y=yc, mode='lines+markers', line=dict(color='black')
     ))
     fig_yc.update_layout(
         title=f"Yield Curve on {date_label}",
-        xaxis_title="Maturity", yaxis_title="Yield (%)"
+        xaxis_title="Maturity (Years)", yaxis_title="Yield (%)",
+        xaxis=dict(
+            tickmode='array',
+            tickvals=maturities_numeric,
+            ticktext=maturities  # This ensures labels are displayed as '2Y', '5Y', etc.
+        )
     )
-
+    
     st.plotly_chart(fig_yc, use_container_width=True)
+
 
     st.subheader("Yield Statistics (Selected Date Range)")
 
