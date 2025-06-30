@@ -108,13 +108,26 @@ with main_tab:
     st.session_state["prev_clicked"] = False
     st.session_state["next_clicked"] = False
     st.session_state.date_index = proposed_index
+    
+    maturity_map = {
+        '2Y': 2,
+        '5Y': 5,
+        '10Y': 10,
+        '30Y': 30
+    }
 
     row = df_filtered.iloc[proposed_index]
-    yc = [row[m] for m in maturities]
+    # Update the Yield Curve Plot to use numeric maturities
+    maturity_values = [maturity_map[m] for m in maturities]  # Convert maturities to numeric values
+    yc_values = [row[m] for m in maturities]  # Corresponding yield values
+    
     fig_yc = go.Figure()
-    fig_yc.add_trace(go.Scatter(x=maturities, y=yc, mode='lines+markers', line=dict(color='black')))
-    fig_yc.update_layout(title=f"Yield Curve on {row['DateOnly']}")
+    fig_yc.add_trace(go.Scatter(x=maturity_values, y=yc_values, mode='lines+markers', line=dict(color='black')))
+    fig_yc.update_layout(title=f"Yield Curve on {row['DateOnly']}",
+                         xaxis_title="Maturity (Years)",  # Update x-axis label to 'Maturity (Years)'
+                         xaxis=dict(tickmode='array', tickvals=maturity_values, ticktext=maturities))  # Use original labels as ticks
     st.plotly_chart(fig_yc, use_container_width=True)
+
 
     st.subheader("Yield Statistics")
     stat_start = st.date_input("Stats Start Date", min_date, min_value=min_date, max_value=max_date, key="main_stat_start")
