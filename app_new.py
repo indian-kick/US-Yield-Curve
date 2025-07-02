@@ -115,6 +115,8 @@ with main_tab:
         '10Y': 10,
         '30Y': 30
     }
+    
+    proposed_index = min(max(0, proposed_index), len(df_filtered) - 1)
 
     row = df_filtered.iloc[proposed_index]
     # Update the Yield Curve Plot to use numeric maturities
